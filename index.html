@@ -575,11 +575,15 @@ function renderStudy(){
 }
 
 function flipCard(){
+  if(answering) return;
   flipped = !flipped;
   document.getElementById('flashcard').classList.toggle('flipped', flipped);
 }
 
+let answering = false;
 function answer(knew){
+  if(answering) return;
+  answering = true;
   const c = studyQueue[studyIndex];
   const real = cards.find(x => x.id === c.id);
   if(knew){
@@ -590,8 +594,16 @@ function answer(knew){
   real.due = addDays(todayStr(), LEVEL_DAYS[real.level]);
   saveCards();
   render();
-  studyIndex++;
-  renderStudy();
+
+  const wasFlipped = flipped;
+  document.getElementById('flashcard').classList.remove('flipped');
+  flipped = false;
+
+  setTimeout(function(){
+    studyIndex++;
+    renderStudy();
+    answering = false;
+  }, wasFlipped ? 520 : 0);
 }
 
 function exportBackup(){
