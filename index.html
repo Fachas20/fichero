@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Fichero — tarjetas de vocabulario</title>
+<style>
+  :root{
+    --ink:#1B2430;
+    --ink-2:#26313F;
+    --paper:#F7F3E9;
+    --paper-line:#E4DCC8;
+    --amber:#E3A857;
+    --amber-dim:#B9863F;
+    --teal:#4E9A8C;
+    --coral:#C4634B;
+    --text-soft:#9AA6B2;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding:0 0 32px 0;
+  }
+  header{
+    padding:28px 20px 18px 20px;
+    border-bottom:1px solid var(--ink-2);
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 6px 0;
+  }
+  h1{
+    font-family:Georgia,'Iowan Old Style',serif;
+    font-size:28px;
+    margin:0;
+    color:var(--paper);
+  }
+  .stats{
+    display:flex;
+    gap:14px;
+    margin-top:16px;
+  }
+  .stat{
+    flex:1;
+    background:var(--ink-2);
+    border-radius:10px;
+    padding:12px 14px;
+  }
+  .stat .n{
+    font-family:Georgia,serif;
+    font-size:22px;
+    color:var(--amber);
+    display:block;
+  }
+  .stat .l{
+    font-size:11px;
+    color:var(--text-soft);
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+  main{
+    flex:1;
+    padding:20px;
+  }
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  .btn-row{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-top:8px;
+  }
+  button{
+    font-family:inherit;
+    font-size:15px;
+    border:none;
+    border-radius:10px;
+    padding:16px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn-primary{
+    background:var(--amber);
+    color:var(--ink);
+  }
+  .btn-secondary{
+    background:var(--ink-2);
+    color:var(--paper);
+    border:1px solid #3A4655;
+  }
+  .btn-ghost{
+    background:transparent;
+    color:var(--text-soft);
+    border:1px solid var(--ink-2);
+  }
+  .btn-danger{
+    background:transparent;
+    color:var(--coral);
+    border:1px solid var(--coral);
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .topbar h2{
+    font-family:Georgia,serif;
+    font-size:20px;
+    margin:0;
+  }
+  .link-btn{
+    background:none;
+    border:none;
+    color:var(--amber);
+    font-size:14px;
+    padding:6px 0;
+    cursor:pointer;
+  }
+
+  label{
+    display:block;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-soft);
+    margin:16px 0 6px 0;
+  }
+  input[type=text], textarea{
+    width:100%;
+    background:var(--ink-2);
+    border:1px solid #3A4655;
+    border-radius:8px;
+    padding:12px;
+    color:var(--paper);
+    font-family:inherit;
+    font-size:15px;
+  }
+  textarea{min-height:140px;resize:vertical;}
+  .hint{
+    font-size:12px;
+    color:var(--text-soft);
+    margin-top:6px;
+    line-height:1.5;
+  }
+
+  /* Card flip */
+  .card-stage{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin-top:10px;
+  }
+  .progress-line{
+    width:100%;
+    font-size:12px;
+    color:var(--text-soft);
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .flashcard{
+    width:100%;
+    aspect-ratio:4/3;
+    perspective:1200px;
+    margin-bottom:22px;
+  }
+  .flashcard-inner{
+    position:relative;
+    width:100%;
+    height:100%;
+    transition:transform .5s cubic-bezier(.4,.2,.2,1);
+    transform-style:preserve-3d;
+    cursor:pointer;
+  }
+  .flashcard.flipped .flashcard-inner{transform:rotateY(180deg);}
+  .face{
+    position:absolute;
+    inset:0;
+    backface-visibility:hidden;
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  .face .tag{
+    position:absolute;
+    top:14px;
+    left:16px;
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--amber-dim);
+  }
+  .face .word{
+    font-family:Georgia,serif;
+    font-size:26px;
+  }
+  .face .example{
+    margin-top:12px;
+    font-size:13px;
+    color:#5A6472;
+    font-style:italic;
+  }
+  .back-face{transform:rotateY(180deg);background:#EFE7D3;}
+
+  .answer-row{
+    display:flex;
+    gap:12px;
+    width:100%;
+  }
+  .answer-row button{flex:1;}
+  .btn-no{background:var(--coral);color:#fff;}
+  .btn-yes{background:var(--teal);color:#fff;}
+  .tap-hint{
+    font-size:12px;
+    color:var(--text-soft);
+    text-align:center;
+    margin-bottom:16px;
+  }
+
+  .empty{
+    text-align:center;
+    padding:40px 10px;
+    color:var(--text-soft);
+  }
+  .empty .big{
+    font-family:Georgia,serif;
+    font-size:18px;
+    color:var(--paper);
+    margin-bottom:8px;
+  }
+
+  .list-item{
+    background:var(--ink-2);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+  .list-item .lw{font-weight:600;}
+  .list-item .lt{font-size:13px;color:var(--text-soft);}
+  .list-item .lvl{
+    font-size:10px;
+    color:var(--amber);
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+  .del{
+    background:none;
+    border:none;
+    color:var(--coral);
+    font-size:18px;
+    cursor:pointer;
+    padding:4px 8px;
+  }
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--paper);
+    color:var(--ink);
+    padding:10px 18px;
+    border-radius:20px;
+    font-size:13px;
+    box-shadow:0 6px 18px rgba(0,0,0,.4);
+    opacity:0;
+    transition:opacity .25s;
+    pointer-events:none;
+    z-index:50;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <p class="eyebrow">Fichero</p>
+    <h1>Tus tarjetas</h1>
+    <div class="stats">
+      <div class="stat"><span class="n" id="statTotal">0</span><span class="l">Total</span></div>
+      <div class="stat"><span class="n" id="statDue">0</span><span class="l">Para hoy</span></div>
+      <div class="stat"><span class="n" id="statNew">0</span><span class="l">Nuevas</span></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section class="screen active" id="screen-home">
+      <div class="btn-row">
+        <button class="btn-primary" onclick="goStudy()">Estudiar ahora</button>
+        <button class="btn-secondary" onclick="showScreen('add')">Agregar palabra</button>
+        <button class="btn-secondary" onclick="showScreen('import')">Importar lista</button>
+        <button class="btn-ghost" onclick="showScreen('list')">Ver todas las tarjetas</button>
+      </div>
+      <div class="btn-row" style="margin-top:24px;">
+        <label style="margin:0 0 -4px 0;">Respaldo</label>
+        <button class="btn-ghost" onclick="exportBackup()">Exportar respaldo (.json)</button>
+        <button class="btn-ghost" onclick="document.getElementById('importFile').click()">Importar respaldo</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importBackup(event)">
+      </div>
+    </section>
+
+    <!-- ADD -->
+    <section class="screen" id="screen-add">
+      <div class="topbar">
+        <h2>Nueva palabra</h2>
+        <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
+      </div>
+      <label>Palabra (idioma que estudias)</label>
+      <input type="text" id="addWord" placeholder="ej. manzana">
+      <label>Traducción</label>
+      <input type="text" id="addTrans" placeholder="ej. apple">
+      <label>Ejemplo (opcional)</label>
+      <input type="text" id="addExample" placeholder="ej. Me comí una manzana roja.">
+      <div class="btn-row">
+        <button class="btn-primary" onclick="addSingleCard()">Guardar tarjeta</button>
+      </div>
+    </section>
+
+    <!-- IMPORT -->
+    <section class="screen" id="screen-import">
+      <div class="topbar">
+        <h2>Importar lista</h2>
+        <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
+      </div>
+      <label>Pega tu lista</label>
+      <textarea id="importText" placeholder="manzana; apple; Me comí una manzana roja
+perro; dog
+gato; cat"></textarea>
+      <p class="hint">Una palabra por línea, separando con punto y coma <b>;</b> así: <b>palabra; traducción; ejemplo (opcional)</b>. Puedes pedirme en el chat que te genere esta lista para el tema que quieras, y luego la pegas aquí.</p>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="importList()">Importar</button>
+      </div>
+    </section>
+
+    <!-- STUDY -->
+    <section class="screen" id="screen-study">
+      <div class="topbar">
+        <h2>Estudiando</h2>
+        <button class="link-btn" onclick="showScreen('home')">Salir</button>
+      </div>
+      <div id="studyEmpty" class="empty" style="display:none">
+        <div class="big">Nada pendiente por hoy</div>
+        <div>Agrega palabras nuevas o vuelve más tarde.</div>
+      </div>
+      <div id="studyBody" class="card-stage" style="display:none">
+        <div class="progress-line">
+          <span id="studyProgress">1 / 1</span>
+          <span id="studyLevel"></span>
+        </div>
+        <div class="flashcard" id="flashcard" onclick="flipCard()">
+          <div class="flashcard-inner" id="flashcardInner">
+            <div class="face front-face">
+              <span class="tag">Palabra</span>
+              <div class="word" id="frontWord"></div>
+            </div>
+            <div class="face back-face">
+              <span class="tag">Traducción</span>
+              <div class="word" id="backWord"></div>
+              <div class="example" id="backExample"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tap-hint">Toca la tarjeta para voltearla</div>
+        <div class="answer-row">
+          <button class="btn-no" onclick="answer(false)">No sabía</button>
+          <button class="btn-yes" onclick="answer(true)">Sabía</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIST -->
+    <section class="screen" id="screen-list">
+      <div class="topbar">
+        <h2>Todas las tarjetas</h2>
+        <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
+      </div>
+      <div id="listBody"></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let cards = [];
+let studyQueue = [];
+let studyIndex = 0;
+let flipped = false;
+
+const LEVEL_DAYS = [0, 1, 2, 4, 7, 14]; // días hasta la próxima repetición según nivel
+
+function todayStr(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function addDays(dateStr, days){
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+async function loadCards(){
+  try{
+    const raw = localStorage.getItem('fichero_cards');
+    cards = raw ? JSON.parse(raw) : [];
+  }catch(e){
+    cards = [];
+  }
+  render();
+}
+
+async function saveCards(){
+  try{
+    localStorage.setItem('fichero_cards', JSON.stringify(cards));
+  }catch(e){
+    showToast('No se pudo guardar. Intenta de nuevo.');
+  }
+}
+
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(name==='list') renderList();
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1600);
+}
+
+function render(){
+  const total = cards.length;
+  const today = todayStr();
+  const due = cards.filter(c => c.due <= today).length;
+  const nw = cards.filter(c => c.level === 0).length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statDue').textContent = due;
+  document.getElementById('statNew').textContent = nw;
+}
+
+function addSingleCard(){
+  const w = document.getElementById('addWord').value.trim();
+  const t = document.getElementById('addTrans').value.trim();
+  const ex = document.getElementById('addExample').value.trim();
+  if(!w || !t){
+    showToast('Escribe la palabra y la traducción.');
+    return;
+  }
+  cards.push({
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    word: w, trans: t, example: ex,
+    level: 0, due: todayStr()
+  });
+  saveCards();
+  document.getElementById('addWord').value='';
+  document.getElementById('addTrans').value='';
+  document.getElementById('addExample').value='';
+  render();
+  showToast('Tarjeta guardada.');
+  showScreen('home');
+}
+
+function importList(){
+  const raw = document.getElementById('importText').value;
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l.length);
+  let added = 0;
+  lines.forEach(line=>{
+    const parts = line.split(';').map(p=>p.trim());
+    if(parts.length >= 2 && parts[0] && parts[1]){
+      cards.push({
+        id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+        word: parts[0], trans: parts[1], example: parts[2] || '',
+        level: 0, due: todayStr()
+      });
+      added++;
+    }
+  });
+  if(added === 0){
+    showToast('No se reconoció ninguna línea. Revisa el formato.');
+    return;
+  }
+  saveCards();
+  document.getElementById('importText').value='';
+  render();
+  showToast(added + ' tarjetas importadas.');
+  showScreen('home');
+}
+
+function renderList(){
+  const body = document.getElementById('listBody');
+  if(cards.length === 0){
+    body.innerHTML = '<div class="empty"><div class="big">Aún no hay tarjetas</div><div>Agrega palabras o importa una lista.</div></div>';
+    return;
+  }
+  body.innerHTML = cards.slice().reverse().map(c => `
+    <div class="list-item">
+      <div>
+        <div class="lw">${escapeHtml(c.word)}</div>
+        <div class="lt">${escapeHtml(c.trans)}</div>
+        <div class="lvl">Nivel ${c.level} · repasa ${c.due}</div>
+      </div>
+      <button class="del" onclick="deleteCard('${c.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function deleteCard(id){
+  cards = cards.filter(c => c.id !== id);
+  saveCards();
+  render();
+  renderList();
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function goStudy(){
+  const today = todayStr();
+  studyQueue = cards.filter(c => c.due <= today);
+  studyIndex = 0;
+  flipped = false;
+  showScreen('study');
+  renderStudy();
+}
+
+function renderStudy(){
+  const empty = document.getElementById('studyEmpty');
+  const bodyEl = document.getElementById('studyBody');
+  if(studyQueue.length === 0 || studyIndex >= studyQueue.length){
+    empty.style.display = 'block';
+    bodyEl.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  bodyEl.style.display = 'flex';
+  const c = studyQueue[studyIndex];
+  document.getElementById('frontWord').textContent = c.word;
+  document.getElementById('backWord').textContent = c.trans;
+  document.getElementById('backExample').textContent = c.example || '';
+  document.getElementById('studyProgress').textContent = (studyIndex+1) + ' / ' + studyQueue.length;
+  document.getElementById('studyLevel').textContent = 'Nivel ' + c.level;
+  flipped = false;
+  document.getElementById('flashcard').classList.remove('flipped');
+}
+
+function flipCard(){
+  flipped = !flipped;
+  document.getElementById('flashcard').classList.toggle('flipped', flipped);
+}
+
+function answer(knew){
+  const c = studyQueue[studyIndex];
+  const real = cards.find(x => x.id === c.id);
+  if(knew){
+    real.level = Math.min(real.level + 1, LEVEL_DAYS.length - 1);
+  } else {
+    real.level = 0;
+  }
+  real.due = addDays(todayStr(), LEVEL_DAYS[real.level]);
+  saveCards();
+  render();
+  studyIndex++;
+  renderStudy();
+}
+
+function exportBackup(){
+  if(cards.length === 0){
+    showToast('No tienes tarjetas para exportar.');
+    return;
+  }
+  const data = JSON.stringify(cards, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = todayStr();
+  a.href = url;
+  a.download = 'fichero-respaldo-' + stamp + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Respaldo descargado.');
+}
+
+function importBackup(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const imported = JSON.parse(e.target.result);
+      if(!Array.isArray(imported)) throw new Error('formato inválido');
+      const validCards = imported.filter(c => c && c.word && c.trans).map(c => ({
+        id: c.id || (Date.now()+'-'+Math.random().toString(36).slice(2,7)),
+        word: c.word,
+        trans: c.trans,
+        example: c.example || '',
+        level: typeof c.level === 'number' ? c.level : 0,
+        due: c.due || todayStr()
+      }));
+      if(validCards.length === 0){
+        showToast('El archivo no tiene tarjetas válidas.');
+        return;
+      }
+      const existingIds = new Set(cards.map(c => c.id));
+      let added = 0;
+      validCards.forEach(c => {
+        if(!existingIds.has(c.id)){
+          cards.push(c);
+          added++;
+        }
+      });
+      saveCards();
+      render();
+      showToast(added + ' tarjetas restauradas.');
+    }catch(err){
+      showToast('No se pudo leer el archivo de respaldo.');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+loadCards();
+</script>
+</body>
+</html>
