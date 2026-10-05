@@ -87,6 +87,33 @@
     gap:12px;
     margin-top:8px;
   }
+  .deck-chips{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .chip{
+    background:var(--ink-2);
+    border:1px solid #3A4655;
+    color:var(--paper);
+    border-radius:20px;
+    padding:8px 14px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .chip .count{
+    color:var(--text-soft);
+    font-size:11px;
+    margin-left:4px;
+  }
+  .chip.active{
+    background:var(--amber);
+    color:var(--ink);
+    border-color:var(--amber);
+    font-weight:600;
+  }
+  .chip.active .count{color:var(--ink);}
   button{
     font-family:inherit;
     font-size:15px;
@@ -314,6 +341,9 @@
   <main>
     <!-- HOME -->
     <section class="screen active" id="screen-home">
+      <label style="margin-top:0;">Tema</label>
+      <div id="deckChips" class="deck-chips"></div>
+
       <div class="btn-row">
         <button class="btn-primary" onclick="goStudy()">Estudiar ahora</button>
         <button class="btn-secondary" onclick="showScreen('add')">Agregar palabra</button>
@@ -334,6 +364,9 @@
         <h2>Nueva palabra</h2>
         <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
       </div>
+      <label>Tema</label>
+      <input type="text" id="addDeck" list="deckOptions" placeholder="ej. Colores, Números...">
+      <datalist id="deckOptions"></datalist>
       <label>Palabra (idioma que estudias)</label>
       <input type="text" id="addWord" placeholder="ej. manzana">
       <label>Traducción</label>
@@ -351,6 +384,8 @@
         <h2>Importar lista</h2>
         <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
       </div>
+      <label>Tema para esta lista</label>
+      <input type="text" id="importDeck" list="deckOptions" placeholder="ej. Colores, Números...">
       <label>Pega tu lista</label>
       <textarea id="importText" placeholder="manzana; apple; Me comí una manzana roja
 perro; dog
@@ -364,7 +399,7 @@ gato; cat"></textarea>
     <!-- STUDY -->
     <section class="screen" id="screen-study">
       <div class="topbar">
-        <h2>Estudiando</h2>
+        <h2 id="studyDeckTitle">Estudiando</h2>
         <button class="link-btn" onclick="showScreen('home')">Salir</button>
       </div>
       <div id="studyEmpty" class="empty" style="display:none">
@@ -414,6 +449,7 @@ let cards = [];
 let studyQueue = [];
 let studyIndex = 0;
 let flipped = false;
+let activeDeck = localStorage.getItem('fichero_active_deck') || 'Todos';
 
 const LEVEL_DAYS = [0, 1, 2, 4, 7, 14]; // días hasta la próxima repetición según nivel
 
@@ -434,7 +470,54 @@ async function loadCards(){
   }catch(e){
     cards = [];
   }
+  let migrated = false;
+  cards.forEach(c => {
+    if(!c.deck){ c.deck = 'General'; migrated = true; }
+  });
+  if(migrated) saveCards();
   render();
+}
+
+function getDecks(){
+  const set = new Set(cards.map(c => c.deck || 'General'));
+  return Array.from(set).sort();
+}
+
+function setActiveDeck(d){
+  activeDeck = d;
+  localStorage.setItem('fichero_active_deck', d);
+  render();
+}
+
+function cardsInActiveDeck(){
+  if(activeDeck === 'Todos') return cards;
+  return cards.filter(c => (c.deck || 'General') === activeDeck);
+}
+
+function renderDeckChips(){
+  const el = document.getElementById('deckChips');
+  const decks = getDecks();
+  if(!decks.includes(activeDeck) && activeDeck !== 'Todos'){
+    activeDeck = 'Todos';
+    localStorage.setItem('fichero_active_deck', activeDeck);
+  }
+  const today = todayStr();
+  const all = ['Todos', ...decks];
+  el.innerHTML = all.map(d => {
+    const list = d === 'Todos' ? cards : cards.filter(c => (c.deck||'General') === d);
+    const due = list.filter(c => c.due <= today).length;
+    const cls = d === activeDeck ? 'chip active' : 'chip';
+    return `<button class="${cls}" onclick="setActiveDeck('${escapeAttr(d)}')">${escapeHtml(d)}<span class="count">${list.length} · ${due} hoy</span></button>`;
+  }).join('');
+
+  const opts = document.getElementById('deckOptions');
+  if(opts){
+    opts.innerHTML = decks.map(d => `<option value="${escapeAttr(d)}"></option>`).join('');
+  }
+}
+
+function escapeAttr(s){
+  return String(s).replace(/"/g,'&quot;');
 }
 
 async function saveCards(){
@@ -459,11 +542,12 @@ function showToast(msg){
 }
 
 function render(){
-  const total = cards.length;
+  renderDeckChips();
+  const scope = cardsInActiveDeck();
   const today = todayStr();
-  const due = cards.filter(c => c.due <= today).length;
-  const nw = cards.filter(c => c.level === 0).length;
-  document.getElementById('statTotal').textContent = total;
+  const due = scope.filter(c => c.due <= today).length;
+  const nw = scope.filter(c => c.level === 0).length;
+  document.getElementById('statTotal').textContent = scope.length;
   document.getElementById('statDue').textContent = due;
   document.getElementById('statNew').textContent = nw;
 }
@@ -472,13 +556,14 @@ function addSingleCard(){
   const w = document.getElementById('addWord').value.trim();
   const t = document.getElementById('addTrans').value.trim();
   const ex = document.getElementById('addExample').value.trim();
+  const deck = document.getElementById('addDeck').value.trim() || 'General';
   if(!w || !t){
     showToast('Escribe la palabra y la traducción.');
     return;
   }
   cards.push({
     id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
-    word: w, trans: t, example: ex,
+    word: w, trans: t, example: ex, deck: deck,
     level: 0, due: todayStr()
   });
   saveCards();
@@ -486,12 +571,13 @@ function addSingleCard(){
   document.getElementById('addTrans').value='';
   document.getElementById('addExample').value='';
   render();
-  showToast('Tarjeta guardada.');
+  showToast('Tarjeta guardada en "' + deck + '".');
   showScreen('home');
 }
 
 function importList(){
   const raw = document.getElementById('importText').value;
+  const deck = document.getElementById('importDeck').value.trim() || 'General';
   const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l.length);
   let added = 0;
   lines.forEach(line=>{
@@ -499,7 +585,7 @@ function importList(){
     if(parts.length >= 2 && parts[0] && parts[1]){
       cards.push({
         id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
-        word: parts[0], trans: parts[1], example: parts[2] || '',
+        word: parts[0], trans: parts[1], example: parts[2] || '', deck: deck,
         level: 0, due: todayStr()
       });
       added++;
@@ -511,23 +597,26 @@ function importList(){
   }
   saveCards();
   document.getElementById('importText').value='';
+  document.getElementById('importDeck').value='';
   render();
-  showToast(added + ' tarjetas importadas.');
+  showToast(added + ' tarjetas importadas en "' + deck + '".');
+  setActiveDeck(deck);
   showScreen('home');
 }
 
 function renderList(){
   const body = document.getElementById('listBody');
-  if(cards.length === 0){
-    body.innerHTML = '<div class="empty"><div class="big">Aún no hay tarjetas</div><div>Agrega palabras o importa una lista.</div></div>';
+  const scope = cardsInActiveDeck();
+  if(scope.length === 0){
+    body.innerHTML = '<div class="empty"><div class="big">Aún no hay tarjetas</div><div>Agrega palabras o importa una lista en este tema.</div></div>';
     return;
   }
-  body.innerHTML = cards.slice().reverse().map(c => `
+  body.innerHTML = scope.slice().reverse().map(c => `
     <div class="list-item">
       <div>
         <div class="lw">${escapeHtml(c.word)}</div>
         <div class="lt">${escapeHtml(c.trans)}</div>
-        <div class="lvl">Nivel ${c.level} · repasa ${c.due}</div>
+        <div class="lvl">${escapeHtml(c.deck || 'General')} · nivel ${c.level} · repasa ${c.due}</div>
       </div>
       <button class="del" onclick="deleteCard('${c.id}')">✕</button>
     </div>
@@ -547,9 +636,10 @@ function escapeHtml(s){
 
 function goStudy(){
   const today = todayStr();
-  studyQueue = cards.filter(c => c.due <= today);
+  studyQueue = cardsInActiveDeck().filter(c => c.due <= today);
   studyIndex = 0;
   flipped = false;
+  document.getElementById('studyDeckTitle').textContent = 'Estudiando: ' + activeDeck;
   showScreen('study');
   renderStudy();
 }
@@ -638,6 +728,7 @@ function importBackup(event){
         word: c.word,
         trans: c.trans,
         example: c.example || '',
+        deck: c.deck || 'General',
         level: typeof c.level === 'number' ? c.level : 0,
         due: c.due || todayStr()
       }));
