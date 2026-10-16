@@ -114,6 +114,19 @@
     font-weight:600;
   }
   .chip.active .count{color:var(--ink);}
+  .shuffle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--ink-2);
+    border:1px solid #3A4655;
+    border-radius:10px;
+    padding:12px 14px;
+    margin:14px 0 4px 0;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .shuffle-row input{width:18px;height:18px;accent-color:var(--amber);}
   button{
     font-family:inherit;
     font-size:15px;
@@ -341,8 +354,13 @@
   <main>
     <!-- HOME -->
     <section class="screen active" id="screen-home">
-      <label style="margin-top:0;">Tema</label>
+      <label style="margin-top:0;">Mazo</label>
       <div id="deckChips" class="deck-chips"></div>
+
+      <label class="shuffle-row">
+        <span>Orden aleatorio al estudiar</span>
+        <input type="checkbox" id="shuffleToggle" onchange="toggleShuffle(this.checked)">
+      </label>
 
       <div class="btn-row">
         <button class="btn-primary" onclick="goStudy()">Estudiar ahora</button>
@@ -364,7 +382,7 @@
         <h2>Nueva palabra</h2>
         <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
       </div>
-      <label>Tema</label>
+      <label>Mazo</label>
       <input type="text" id="addDeck" list="deckOptions" placeholder="ej. Colores, Números...">
       <datalist id="deckOptions"></datalist>
       <label>Palabra (idioma que estudias)</label>
@@ -384,7 +402,7 @@
         <h2>Importar lista</h2>
         <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
       </div>
-      <label>Tema para esta lista</label>
+      <label>Mazo para esta lista</label>
       <input type="text" id="importDeck" list="deckOptions" placeholder="ej. Colores, Números...">
       <label>Pega tu lista</label>
       <textarea id="importText" placeholder="manzana; apple; Me comí una manzana roja
@@ -450,6 +468,21 @@ let studyQueue = [];
 let studyIndex = 0;
 let flipped = false;
 let activeDeck = localStorage.getItem('fichero_active_deck') || 'Todos';
+let shuffleOn = localStorage.getItem('fichero_shuffle') !== 'false';
+
+function toggleShuffle(checked){
+  shuffleOn = checked;
+  localStorage.setItem('fichero_shuffle', checked ? 'true' : 'false');
+}
+
+function shuffleArray(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 const LEVEL_DAYS = [0, 1, 2, 4, 7, 14]; // días hasta la próxima repetición según nivel
 
@@ -543,6 +576,8 @@ function showToast(msg){
 
 function render(){
   renderDeckChips();
+  const toggle = document.getElementById('shuffleToggle');
+  if(toggle) toggle.checked = shuffleOn;
   const scope = cardsInActiveDeck();
   const today = todayStr();
   const due = scope.filter(c => c.due <= today).length;
@@ -571,7 +606,7 @@ function addSingleCard(){
   document.getElementById('addTrans').value='';
   document.getElementById('addExample').value='';
   render();
-  showToast('Tarjeta guardada en "' + deck + '".');
+  showToast('Tarjeta guardada en el mazo "' + deck + '".');
   showScreen('home');
 }
 
@@ -599,7 +634,7 @@ function importList(){
   document.getElementById('importText').value='';
   document.getElementById('importDeck').value='';
   render();
-  showToast(added + ' tarjetas importadas en "' + deck + '".');
+  showToast(added + ' tarjetas importadas en el mazo "' + deck + '".');
   setActiveDeck(deck);
   showScreen('home');
 }
@@ -636,10 +671,12 @@ function escapeHtml(s){
 
 function goStudy(){
   const today = todayStr();
-  studyQueue = cardsInActiveDeck().filter(c => c.due <= today);
+  let queue = cardsInActiveDeck().filter(c => c.due <= today);
+  if(shuffleOn) queue = shuffleArray(queue);
+  studyQueue = queue;
   studyIndex = 0;
   flipped = false;
-  document.getElementById('studyDeckTitle').textContent = 'Estudiando: ' + activeDeck;
+  document.getElementById('studyDeckTitle').textContent = 'Mazo: ' + activeDeck;
   showScreen('study');
   renderStudy();
 }
