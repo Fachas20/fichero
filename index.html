@@ -364,9 +364,10 @@
 
       <div class="btn-row">
         <button class="btn-primary" onclick="goStudy()">Estudiar ahora</button>
-        <button class="btn-secondary" onclick="showScreen('add')">Agregar palabra</button>
+        <button class="btn-secondary" onclick="openAdd()">Agregar palabra</button>
         <button class="btn-secondary" onclick="showScreen('import')">Importar lista</button>
         <button class="btn-ghost" onclick="showScreen('list')">Ver todas las tarjetas</button>
+        <button class="btn-ghost" id="manageDeckBtn" style="display:none" onclick="openManageDeck()">Gestionar mazo "<span id="manageDeckName"></span>"</button>
       </div>
       <div class="btn-row" style="margin-top:24px;">
         <label style="margin:0 0 -4px 0;">Respaldo</label>
@@ -453,10 +454,45 @@ gato; cat"></textarea>
     <!-- LIST -->
     <section class="screen" id="screen-list">
       <div class="topbar">
-        <h2>Todas las tarjetas</h2>
+        <h2>Tarjetas</h2>
         <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
       </div>
       <div id="listBody"></div>
+    </section>
+
+    <!-- EDIT CARD -->
+    <section class="screen" id="screen-edit">
+      <div class="topbar">
+        <h2>Editar tarjeta</h2>
+        <button class="link-btn" onclick="showScreen('list')">Cerrar</button>
+      </div>
+      <label>Mazo</label>
+      <input type="text" id="editDeck" list="deckOptions">
+      <label>Palabra (idioma que estudias)</label>
+      <input type="text" id="editWord">
+      <label>Traducción</label>
+      <input type="text" id="editTrans">
+      <label>Ejemplo (opcional)</label>
+      <input type="text" id="editExample">
+      <div class="btn-row">
+        <button class="btn-primary" onclick="saveEditedCard()">Guardar cambios</button>
+        <button class="btn-danger" onclick="deleteFromEdit()">Eliminar esta tarjeta</button>
+      </div>
+    </section>
+
+    <!-- MANAGE DECK -->
+    <section class="screen" id="screen-manage-deck">
+      <div class="topbar">
+        <h2>Gestionar mazo</h2>
+        <button class="link-btn" onclick="showScreen('home')">Cerrar</button>
+      </div>
+      <label>Nombre del mazo</label>
+      <input type="text" id="renameDeckInput">
+      <div class="btn-row">
+        <button class="btn-primary" onclick="renameActiveDeck()">Guardar nombre nuevo</button>
+        <button class="btn-secondary" onclick="prefillAddWithDeck()">Agregar palabra a este mazo</button>
+        <button class="btn-danger" onclick="deleteActiveDeck()">Eliminar mazo completo</button>
+      </div>
     </section>
   </main>
 </div>
@@ -578,6 +614,15 @@ function render(){
   renderDeckChips();
   const toggle = document.getElementById('shuffleToggle');
   if(toggle) toggle.checked = shuffleOn;
+  const mgBtn = document.getElementById('manageDeckBtn');
+  if(mgBtn){
+    if(activeDeck !== 'Todos'){
+      mgBtn.style.display = 'block';
+      document.getElementById('manageDeckName').textContent = activeDeck;
+    } else {
+      mgBtn.style.display = 'none';
+    }
+  }
   const scope = cardsInActiveDeck();
   const today = todayStr();
   const due = scope.filter(c => c.due <= today).length;
@@ -653,7 +698,10 @@ function renderList(){
         <div class="lt">${escapeHtml(c.trans)}</div>
         <div class="lvl">${escapeHtml(c.deck || 'General')} · nivel ${c.level} · repasa ${c.due}</div>
       </div>
-      <button class="del" onclick="deleteCard('${c.id}')">✕</button>
+      <div style="display:flex;">
+        <button class="del" style="color:var(--amber)" onclick="editCard('${c.id}')">✎</button>
+        <button class="del" onclick="deleteCard('${c.id}')">✕</button>
+      </div>
     </div>
   `).join('');
 }
@@ -790,6 +838,85 @@ function importBackup(event){
     event.target.value = '';
   };
   reader.readAsText(file);
+}
+
+function openAdd(){
+  document.getElementById('addDeck').value = activeDeck !== 'Todos' ? activeDeck : '';
+  showScreen('add');
+}
+
+let editingCardId = null;
+function editCard(id){
+  const c = cards.find(x => x.id === id);
+  if(!c) return;
+  editingCardId = id;
+  document.getElementById('editDeck').value = c.deck || 'General';
+  document.getElementById('editWord').value = c.word;
+  document.getElementById('editTrans').value = c.trans;
+  document.getElementById('editExample').value = c.example || '';
+  showScreen('edit');
+}
+
+function saveEditedCard(){
+  const c = cards.find(x => x.id === editingCardId);
+  if(!c) return;
+  const w = document.getElementById('editWord').value.trim();
+  const t = document.getElementById('editTrans').value.trim();
+  if(!w || !t){
+    showToast('Escribe la palabra y la traducción.');
+    return;
+  }
+  c.word = w;
+  c.trans = t;
+  c.example = document.getElementById('editExample').value.trim();
+  c.deck = document.getElementById('editDeck').value.trim() || 'General';
+  saveCards();
+  render();
+  showToast('Tarjeta actualizada.');
+  showScreen('list');
+}
+
+function deleteFromEdit(){
+  if(!editingCardId) return;
+  deleteCard(editingCardId);
+  showScreen('list');
+}
+
+function openManageDeck(){
+  document.getElementById('renameDeckInput').value = activeDeck;
+  showScreen('manage-deck');
+}
+
+function renameActiveDeck(){
+  const newName = document.getElementById('renameDeckInput').value.trim();
+  if(!newName){
+    showToast('Escribe un nombre para el mazo.');
+    return;
+  }
+  const oldName = activeDeck;
+  cards.forEach(c => {
+    if((c.deck || 'General') === oldName) c.deck = newName;
+  });
+  saveCards();
+  setActiveDeck(newName);
+  showToast('Mazo renombrado a "' + newName + '".');
+  showScreen('home');
+}
+
+function prefillAddWithDeck(){
+  document.getElementById('addDeck').value = activeDeck;
+  showScreen('add');
+}
+
+function deleteActiveDeck(){
+  const deckName = activeDeck;
+  const count = cardsInActiveDeck().length;
+  if(!confirm('¿Eliminar el mazo "' + deckName + '" y sus ' + count + ' tarjetas? Esto no se puede deshacer.')) return;
+  cards = cards.filter(c => (c.deck || 'General') !== deckName);
+  saveCards();
+  setActiveDeck('Todos');
+  showToast('Mazo "' + deckName + '" eliminado.');
+  showScreen('home');
 }
 
 loadCards();
