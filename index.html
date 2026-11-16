@@ -337,10 +337,85 @@
     z-index:50;
   }
   .toast.show{opacity:1;}
+
+  /* --- Limpieza visual + menú lateral --- */
+  header{padding:64px 24px 28px 24px;}
+  .stats{gap:12px;margin-top:22px;}
+  .stat{padding:14px 16px;}
+  main{padding:28px 24px;}
+  .section-label{margin:0 0 12px 0;}
+  .deck-chips{gap:10px;margin-bottom:28px;}
+  .shuffle-row{background:transparent;border:none;border-top:1px solid var(--ink-2);border-bottom:1px solid var(--ink-2);border-radius:0;padding:16px 2px;margin:0 0 36px 0;color:var(--text-soft);}
+  .main-cta button{padding:18px;font-size:16px;}
+
+  .menu-btn{
+    position:fixed;top:16px;left:16px;z-index:40;
+    width:40px;height:40px;border-radius:50%;
+    background:rgba(247,243,233,.08);
+    border:1px solid rgba(247,243,233,.10);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    padding:0;opacity:.55;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    transition:opacity .2s;
+  }
+  .menu-btn:active{opacity:1;}
+  .menu-btn span{display:block;width:16px;height:1.5px;background:var(--paper);border-radius:1px;}
+  body:not([data-screen="home"]) .menu-btn{display:none;}
+
+  .drawer-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;
+    opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .drawer{
+    position:fixed;top:0;left:0;bottom:0;width:78%;max-width:300px;z-index:70;
+    background:var(--ink-2);border-right:1px solid #3A4655;
+    transform:translateX(-100%);opacity:0;visibility:hidden;
+    transition:transform .32s cubic-bezier(.4,.2,.2,1),opacity .32s ease,visibility 0s linear .32s;
+    padding:56px 22px 32px 22px;overflow-y:auto;
+  }
+  body.menu-open .drawer{
+    transform:translateX(0);opacity:1;visibility:visible;
+    transition:transform .32s cubic-bezier(.4,.2,.2,1),opacity .32s ease,visibility 0s;
+  }
+  body.menu-open .drawer-backdrop{opacity:1;pointer-events:auto;}
+  .drawer-title{font-family:Georgia,serif;font-size:22px;margin-bottom:28px;color:var(--paper);}
+  .drawer-group{margin-bottom:28px;}
+  .drawer-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:10px;}
+  .drawer-group button{
+    display:block;width:100%;text-align:left;background:transparent;color:var(--paper);
+    border:none;border-radius:8px;padding:13px 10px;font-size:15px;font-weight:400;
+  }
+  .drawer-group button:active{background:rgba(255,255,255,.07);}
 </style>
 </head>
 <body>
 <div id="app">
+  <button class="menu-btn" id="menuBtn" aria-label="Menú" onclick="openMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeMenu()"></div>
+  <nav class="drawer" id="drawer">
+    <div class="drawer-title">Fichero</div>
+
+    <div class="drawer-group" id="drawerDeckGroup" style="display:none">
+      <div class="drawer-label">Mazo: <span id="drawerDeckName"></span></div>
+      <button onclick="menuGo(openManageDeck)">Renombrar o eliminar mazo</button>
+      <button onclick="menuGo(prefillAddWithDeck)">Agregar palabra a este mazo</button>
+    </div>
+
+    <div class="drawer-group">
+      <div class="drawer-label">Contenido</div>
+      <button onclick="menuGo(openAdd)">Agregar palabra</button>
+      <button onclick="menuGo(function(){showScreen('import')})">Importar lista</button>
+      <button onclick="menuGo(function(){showScreen('list')})">Ver y editar tarjetas</button>
+    </div>
+
+    <div class="drawer-group">
+      <div class="drawer-label">Respaldo</div>
+      <button onclick="menuGo(exportBackup)">Exportar respaldo</button>
+      <button onclick="menuGo(function(){document.getElementById('importFile').click()})">Importar respaldo</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importBackup(event)">
+    </div>
+  </nav>
   <header>
     <p class="eyebrow">Fichero</p>
     <h1>Tus tarjetas</h1>
@@ -354,26 +429,16 @@
   <main>
     <!-- HOME -->
     <section class="screen active" id="screen-home">
-      <label style="margin-top:0;">Mazo</label>
+      <label class="section-label">Mazo</label>
       <div id="deckChips" class="deck-chips"></div>
 
-      <label class="shuffle-row">
-        <span>Orden aleatorio al estudiar</span>
-        <input type="checkbox" id="shuffleToggle" onchange="toggleShuffle(this.checked)">
-      </label>
-
-      <div class="btn-row">
-        <button class="btn-primary" onclick="goStudy()">Estudiar ahora</button>
-        <button class="btn-secondary" onclick="openAdd()">Agregar palabra</button>
-        <button class="btn-secondary" onclick="showScreen('import')">Importar lista</button>
-        <button class="btn-ghost" onclick="showScreen('list')">Ver todas las tarjetas</button>
-        <button class="btn-ghost" id="manageDeckBtn" style="display:none" onclick="openManageDeck()">Gestionar mazo "<span id="manageDeckName"></span>"</button>
+      <div class="shuffle-row" onclick="document.getElementById('shuffleToggle').click()">
+        <span>Orden aleatorio</span>
+        <input type="checkbox" id="shuffleToggle" onclick="event.stopPropagation()" onchange="toggleShuffle(this.checked)">
       </div>
-      <div class="btn-row" style="margin-top:24px;">
-        <label style="margin:0 0 -4px 0;">Respaldo</label>
-        <button class="btn-ghost" onclick="exportBackup()">Exportar respaldo (.json)</button>
-        <button class="btn-ghost" onclick="document.getElementById('importFile').click()">Importar respaldo</button>
-        <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importBackup(event)">
+
+      <div class="btn-row main-cta">
+        <button class="btn-primary" onclick="goStudy()">Estudiar ahora</button>
       </div>
     </section>
 
@@ -600,6 +665,9 @@ async function saveCards(){
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
+  document.body.setAttribute('data-screen', name);
+  closeMenu();
+  window.scrollTo(0,0);
   if(name==='list') renderList();
 }
 
@@ -614,13 +682,13 @@ function render(){
   renderDeckChips();
   const toggle = document.getElementById('shuffleToggle');
   if(toggle) toggle.checked = shuffleOn;
-  const mgBtn = document.getElementById('manageDeckBtn');
-  if(mgBtn){
+  const dg = document.getElementById('drawerDeckGroup');
+  if(dg){
     if(activeDeck !== 'Todos'){
-      mgBtn.style.display = 'block';
-      document.getElementById('manageDeckName').textContent = activeDeck;
+      dg.style.display = 'block';
+      document.getElementById('drawerDeckName').textContent = activeDeck;
     } else {
-      mgBtn.style.display = 'none';
+      dg.style.display = 'none';
     }
   }
   const scope = cardsInActiveDeck();
@@ -918,6 +986,11 @@ function deleteActiveDeck(){
   showToast('Mazo "' + deckName + '" eliminado.');
   showScreen('home');
 }
+
+function openMenu(){ document.body.classList.add('menu-open'); }
+function closeMenu(){ document.body.classList.remove('menu-open'); }
+function menuGo(fn){ closeMenu(); fn(); }
+document.body.setAttribute('data-screen','home');
 
 loadCards();
 </script>
